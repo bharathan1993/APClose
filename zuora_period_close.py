@@ -37,13 +37,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ─── Logging ──────────────────────────────────────────────────────────────────
+log_handlers = [logging.StreamHandler(sys.stdout)]
+if not os.getenv("VERCEL"):
+    log_handlers.append(logging.FileHandler(f"zuora_close_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"))
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(f"zuora_close_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"),
-    ],
+    handlers=log_handlers,
 )
 log = logging.getLogger(__name__)
 
@@ -51,9 +52,9 @@ log = logging.getLogger(__name__)
 SANDBOX_URL    = "https://rest.apisandbox.zuora.com"
 PRODUCTION_URL = "https://rest.zuora.com"
 
-POLL_INTERVAL_SEC  = 10   # seconds between trial-balance status polls
-POLL_MAX_ATTEMPTS  = 60   # max polls (~10 min)
-ACTION_NEEDED_PROCESSING_POLL_ATTEMPTS = 12  # wait up to ~2 min for gateway work to settle
+POLL_INTERVAL_SEC  = int(os.getenv("POLL_INTERVAL_SEC", "10"))   # seconds between trial-balance status polls
+POLL_MAX_ATTEMPTS  = int(os.getenv("POLL_MAX_ATTEMPTS", "25" if os.getenv("VERCEL") else "60"))
+ACTION_NEEDED_PROCESSING_POLL_ATTEMPTS = int(os.getenv("ACTION_NEEDED_PROCESSING_POLL_ATTEMPTS", "8"))
 
 ACTION_NEEDED_CATEGORIES = {
     "draftInvoices": "Draft invoices",

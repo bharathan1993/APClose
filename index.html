@@ -1,0 +1,583 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Zuora Period Close</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef3f8;
+      --card: #ffffff;
+      --ink: #172033;
+      --muted: #667085;
+      --brand: #2454d6;
+      --brand-dark: #1c40a5;
+      --good: #087443;
+      --warn: #b45309;
+      --bad: #b42318;
+      --line: #d8e0ec;
+      --shadow: 0 24px 70px rgba(18, 32, 59, 0.13);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(36, 84, 214, 0.18), transparent 34rem),
+        linear-gradient(135deg, #f8fbff 0%, var(--bg) 100%);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    header {
+      padding: 34px min(5vw, 64px) 18px;
+    }
+
+    .eyebrow {
+      color: var(--brand);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      font-size: clamp(32px, 4vw, 54px);
+      line-height: 1.02;
+      letter-spacing: -0.045em;
+      margin: 0;
+      max-width: 980px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 17px;
+      max-width: 780px;
+      margin-top: 16px;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: minmax(320px, 520px) minmax(420px, 1fr);
+      gap: 24px;
+      padding: 18px min(5vw, 64px) 48px;
+    }
+
+    .card {
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(216, 224, 236, 0.82);
+      border-radius: 28px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      backdrop-filter: blur(16px);
+    }
+
+    .card h2 {
+      font-size: 19px;
+      margin: 0 0 16px;
+      letter-spacing: -0.02em;
+    }
+
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #344054;
+      margin: 16px 0 7px;
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 13px;
+      font: inherit;
+      background: #fff;
+      color: var(--ink);
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 4px rgba(36, 84, 214, 0.12);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      margin-top: 8px;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+      transition: transform 0.12s, background 0.12s, opacity 0.12s;
+    }
+
+    button:hover { transform: translateY(-1px); }
+    button:disabled { cursor: not-allowed; opacity: 0.55; transform: none; }
+    .primary { background: var(--brand); color: #fff; }
+    .primary:hover { background: var(--brand-dark); }
+    .secondary { background: #e8eefc; color: var(--brand-dark); }
+    .danger { background: #fee4e2; color: var(--bad); }
+
+    .switches {
+      display: grid;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .check {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fbfdff;
+    }
+
+    .check input { width: auto; margin-top: 3px; }
+    .check strong { display: block; font-size: 14px; }
+    .check span { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+    .confirm-box {
+      display: none;
+      margin-top: 12px;
+      padding: 14px;
+      border: 1px solid #fedf89;
+      background: #fffbeb;
+      border-radius: 16px;
+    }
+
+    .confirm-box.visible { display: block; }
+
+    .scan-results {
+      display: none;
+      margin-top: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      background: #fbfdff;
+    }
+
+    .scan-results.visible { display: block; }
+
+    .scan-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      padding: 10px 13px;
+      border-top: 1px solid var(--line);
+      font-size: 13px;
+    }
+
+    .scan-row:first-child { border-top: 0; }
+    .scan-row strong { color: var(--ink); }
+    .scan-row span { color: var(--muted); }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-weight: 800;
+      font-size: 13px;
+      background: #eef2f7;
+      color: #344054;
+    }
+
+    .pill.running { background: #e0eaff; color: var(--brand-dark); }
+    .pill.succeeded { background: #dcfae6; color: var(--good); }
+    .pill.failed { background: #fee4e2; color: var(--bad); }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .step {
+      min-height: 82px;
+      border: 1px solid var(--line);
+      background: #fbfdff;
+      border-radius: 18px;
+      padding: 12px;
+      font-size: 13px;
+    }
+
+    .step b {
+      display: block;
+      margin-bottom: 4px;
+      color: var(--ink);
+    }
+
+    .log {
+      height: 480px;
+      overflow: auto;
+      background: #0b1020;
+      color: #d1e0ff;
+      border-radius: 20px;
+      padding: 16px;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+
+    .notice {
+      border-radius: 16px;
+      padding: 13px 14px;
+      font-size: 14px;
+      margin-top: 14px;
+      display: none;
+    }
+
+    .notice.error { display: block; color: var(--bad); background: #fff0ee; border: 1px solid #fecdca; }
+    .notice.info { display: block; color: var(--brand-dark); background: #edf3ff; border: 1px solid #c7d7fe; }
+
+    @media (max-width: 980px) {
+      main { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="eyebrow">Zuora Finance Automation</div>
+    <h1>Close accounting periods with guided controls and live execution logs.</h1>
+    <p class="subtitle">Connect to a Zuora tenant, select the target accounting period, run the same validation, pending-close, trial-balance, close, and optional journal-run workflow from the browser.</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Close Setup</h2>
+      <div class="grid-2">
+        <div>
+          <label for="env">Environment</label>
+          <select id="env">
+            <option value="sandbox">Sandbox</option>
+            <option value="production">Production</option>
+          </select>
+        </div>
+        <div>
+          <label for="baseUrl">Base URL override</label>
+          <input id="baseUrl" placeholder="Leave blank for default or .env">
+        </div>
+      </div>
+
+      <label for="clientId">Client ID</label>
+      <input id="clientId" autocomplete="off" placeholder="Leave blank to use ZUORA_CLIENT_ID from .env">
+
+      <label for="clientSecret">Client Secret</label>
+      <input id="clientSecret" type="password" autocomplete="off" placeholder="Leave blank to use ZUORA_CLIENT_SECRET from .env">
+      <div id="configHint" class="hint">Checking local configuration...</div>
+
+      <div class="actions">
+        <button id="loadPeriods" class="secondary">Load Accounting Periods</button>
+        <button id="scanActionNeeded" class="secondary" disabled>Scan Action Needed</button>
+      </div>
+
+      <label for="period">Accounting Period</label>
+      <select id="period" disabled>
+        <option value="">Load periods to choose one</option>
+      </select>
+
+      <div class="switches">
+        <label class="check">
+          <input id="dryRun" type="checkbox" checked>
+          <span><strong>Dry run first</strong><span>Validate the flow without changing the period state.</span></span>
+        </label>
+        <label class="check">
+          <input id="journalRun" type="checkbox">
+          <span><strong>Generate journal run after close</strong><span>Runs the optional post-close GL export step when the close succeeds.</span></span>
+        </label>
+        <label class="check">
+          <input id="autoResolve" type="checkbox">
+          <span><strong>Auto-resolve Action Needed</strong><span>Posts draft invoices, credit memos, and debit memos after explicit confirmation. Processing payments/refunds are only waited on.</span></span>
+        </label>
+      </div>
+
+      <div id="confirmBox" class="confirm-box">
+        <label for="autoResolveConfirmation">Live confirmation</label>
+        <input id="autoResolveConfirmation" placeholder="Type POST DRAFTS before live auto-resolution">
+        <div class="hint">Required only when Dry run is off. This confirms the app may post draft financial documents listed in Action Needed.</div>
+      </div>
+
+      <div id="scanResults" class="scan-results"></div>
+
+      <div class="actions">
+        <button id="startClose" class="primary" disabled>Start Automation</button>
+        <button id="clearLog" class="danger">Clear Log</button>
+      </div>
+      <div id="message" class="notice"></div>
+    </section>
+
+    <section class="card">
+      <div class="status-bar">
+        <h2>Execution</h2>
+        <span id="status" class="pill">Idle</span>
+      </div>
+
+      <div class="steps">
+        <div class="step"><b>1. Validate</b>Checks period state and payment-run warnings.</div>
+        <div class="step"><b>2. Pending Close</b>Moves the period and triggers trial balance.</div>
+        <div class="step"><b>3. Trial Balance</b>Polls Zuora until complete or errored.</div>
+        <div class="step"><b>4. Close</b>Locks the accounting period.</div>
+        <div class="step"><b>5. Export</b>Optionally creates the journal run.</div>
+      </div>
+
+      <div id="log" class="log">Ready. Load accounting periods to begin.</div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const state = { auth: sessionStorage.getItem("apCloseAuth") || "" };
+
+    function showMessage(text, type = "info") {
+      const el = $("message");
+      el.textContent = text;
+      el.className = `notice ${type}`;
+    }
+
+    function clearMessage() {
+      $("message").className = "notice";
+      $("message").textContent = "";
+    }
+
+    function setStatus(status) {
+      const el = $("status");
+      el.textContent = status[0].toUpperCase() + status.slice(1);
+      el.className = `pill ${status}`;
+    }
+
+    function setBusy(isBusy) {
+      $("loadPeriods").disabled = isBusy;
+      $("scanActionNeeded").disabled = isBusy || !$("period").value;
+      $("startClose").disabled = isBusy || !$("period").value;
+    }
+
+    function payload() {
+      const selected = $("period").selectedOptions[0];
+      return {
+        env: $("env").value,
+        baseUrl: $("baseUrl").value.trim(),
+        clientId: $("clientId").value.trim(),
+        clientSecret: $("clientSecret").value,
+        periodId: selected ? selected.value : "",
+        periodName: selected ? selected.dataset.name : "",
+        dryRun: $("dryRun").checked,
+        generateJournalRun: $("journalRun").checked,
+        autoResolveActionNeeded: $("autoResolve").checked,
+        autoResolveConfirmation: $("autoResolveConfirmation").value,
+      };
+    }
+
+    function renderActionNeeded(actionNeeded) {
+      const el = $("scanResults");
+      const rows = actionNeeded.categories
+        .map((category) => {
+          const examples = category.items.slice(0, 3).map((item) => {
+            const number = item.invoiceNumber || item.invoicenumber || item.paymentNumber || item.paymentnumber ||
+              item.refundNumber || item.refundnumber || item.memoNumber || item.memonumber || item.id;
+            const amount = item.amount ?? item.totalAmount ?? item.totalamount ?? "";
+            return `${number}${amount !== "" ? ` (${amount})` : ""}`;
+          }).join(", ");
+          return `<div class="scan-row"><strong>${category.label}</strong><span>${category.count}${examples ? `: ${examples}` : ""}</span></div>`;
+        })
+        .join("");
+      el.innerHTML = rows;
+      el.className = "scan-results visible";
+    }
+
+    async function api(path, options = {}) {
+      const { _retriedAuth, ...fetchOptions } = options;
+      const headers = {
+        "Content-Type": "application/json",
+        ...(state.auth ? { "Authorization": `Basic ${state.auth}` } : {}),
+        ...(fetchOptions.headers || {}),
+      };
+      const response = await fetch(path, {
+        ...fetchOptions,
+        headers,
+      });
+      if (response.status === 401 && !_retriedAuth) {
+        const username = window.prompt("AP Close username", "admin");
+        const password = window.prompt("AP Close password");
+        if (!username || !password) {
+          throw new Error("Authentication required.");
+        }
+        state.auth = btoa(`${username}:${password}`);
+        sessionStorage.setItem("apCloseAuth", state.auth);
+        return api(path, { ...options, _retriedAuth: true });
+      }
+      const data = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) {
+          sessionStorage.removeItem("apCloseAuth");
+          state.auth = "";
+        }
+        throw new Error(data.error || "Request failed.");
+      }
+      return data;
+    }
+
+    async function startClose() {
+      clearMessage();
+      if ($("autoResolve").checked && !$("dryRun").checked && $("autoResolveConfirmation").value.trim() !== "POST DRAFTS") {
+        showMessage("Type POST DRAFTS to confirm live Action Needed auto-resolution.", "error");
+        setStatus("failed");
+        return;
+      }
+      setBusy(true);
+      setStatus("running");
+      $("log").textContent = "Starting automation. Keep this tab open until the request finishes...";
+
+      try {
+        const data = await api("/api/close", {
+          method: "POST",
+          body: JSON.stringify(payload()),
+        });
+        $("log").textContent = data.logs && data.logs.length ? data.logs.join("\n") : "Automation finished without log output.";
+        $("log").scrollTop = $("log").scrollHeight;
+        setStatus(data.status || (data.success ? "succeeded" : "failed"));
+        showMessage(
+          data.success ? "Automation completed successfully." : "Automation failed. Review the log for details.",
+          data.success ? "info" : "error"
+        );
+      } catch (error) {
+        $("log").textContent = error.message;
+        showMessage(error.message, "error");
+        setStatus("failed");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function loadConfig() {
+      try {
+        const config = await api("/api/config");
+        $("configHint").textContent = config.hasEnvCredentials
+          ? "Server credentials detected. You can leave Client ID and Secret blank."
+          : "No server credentials detected. Enter Client ID and Secret before loading periods.";
+      } catch (error) {
+        $("configHint").textContent = "Could not read server UI configuration.";
+      }
+    }
+
+    async function loadPeriods() {
+      clearMessage();
+      setBusy(true);
+      setStatus("running");
+      $("log").textContent = "Connecting to Zuora and loading accounting periods...";
+
+      try {
+        const data = await api("/api/periods", {
+          method: "POST",
+          body: JSON.stringify(payload()),
+        });
+
+        $("period").innerHTML = "";
+        for (const period of data.periods) {
+          const option = document.createElement("option");
+          option.value = period.id;
+          option.dataset.name = period.name;
+          option.textContent = `${period.name} | ${period.status} | ${period.startDate} to ${period.endDate}`;
+          $("period").appendChild(option);
+        }
+
+        $("period").disabled = data.periods.length === 0;
+        $("startClose").disabled = data.periods.length === 0;
+        $("scanActionNeeded").disabled = data.periods.length === 0;
+        $("log").textContent = data.periods.length
+          ? `Loaded ${data.periods.length} accounting periods. Choose one and start the automation.`
+          : "No accounting periods returned by Zuora.";
+        setStatus("succeeded");
+      } catch (error) {
+        $("log").textContent = error.message;
+        showMessage(error.message, "error");
+        setStatus("failed");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    async function scanActionNeeded() {
+      clearMessage();
+      setBusy(true);
+      setStatus("running");
+      $("log").textContent = "Scanning Action Needed blockers...";
+
+      try {
+        const data = await api("/api/action-needed", {
+          method: "POST",
+          body: JSON.stringify(payload()),
+        });
+        renderActionNeeded(data.actionNeeded);
+        $("log").textContent = data.actionNeeded.total
+          ? `Found ${data.actionNeeded.total} Action Needed blocker(s). Review the scan results before running close.`
+          : "No Action Needed blockers found for the selected period.";
+        setStatus(data.actionNeeded.total ? "failed" : "succeeded");
+      } catch (error) {
+        $("log").textContent = error.message;
+        showMessage(error.message, "error");
+        setStatus("failed");
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    $("loadPeriods").addEventListener("click", loadPeriods);
+    $("scanActionNeeded").addEventListener("click", scanActionNeeded);
+    $("startClose").addEventListener("click", startClose);
+    $("clearLog").addEventListener("click", () => {
+      $("log").textContent = "Ready.";
+      clearMessage();
+      setStatus("idle");
+    });
+    $("period").addEventListener("change", () => {
+      $("startClose").disabled = !$("period").value;
+      $("scanActionNeeded").disabled = !$("period").value;
+    });
+    $("autoResolve").addEventListener("change", () => {
+      $("confirmBox").className = $("autoResolve").checked ? "confirm-box visible" : "confirm-box";
+    });
+
+    loadConfig();
+  </script>
+</body>
+</html>

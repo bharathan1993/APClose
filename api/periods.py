@@ -1,0 +1,26 @@
+import sys
+from http import HTTPStatus
+from http.server import BaseHTTPRequestHandler
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from _common import build_client, error_response, json_response, public_period, read_json, require_auth
+
+
+class handler(BaseHTTPRequestHandler):
+    def do_POST(self) -> None:
+        if not require_auth(self):
+            return
+
+        try:
+            payload = read_json(self)
+            client = build_client(payload)
+            periods = sorted(
+                (public_period(period) for period in client.list_accounting_periods()),
+                key=lambda item: item.get("startDate", ""),
+                reverse=True,
+            )
+            json_response(self, HTTPStatus.OK, {"periods": periods})
+        except Exception as error:
+            error_response(self, error)
