@@ -48,8 +48,8 @@ Then open `http://localhost:8080`.
 This repo includes a Vercel-compatible static UI and Python API functions:
 
 ```text
+app.py
 index.html
-api/
 vercel.json
 ```
 
