@@ -10,6 +10,8 @@ Then open http://localhost:8080.
 import json
 import logging
 import os
+import base64
+import secrets
 import threading
 import traceback
 import uuid
@@ -38,6 +40,8 @@ load_dotenv()
 HOST = os.getenv("HOST", "0.0.0.0" if os.getenv("RENDER") else "127.0.0.1")
 PORT = int(os.getenv("PORT") or os.getenv("ZUORA_CLOSE_UI_PORT", "8080"))
 OPEN_BROWSER = os.getenv("ZUORA_CLOSE_UI_OPEN_BROWSER", "0" if os.getenv("RENDER") else "1") != "0"
+APP_USERNAME = os.getenv("APP_USERNAME", "admin")
+APP_PASSWORD = os.getenv("APP_PASSWORD", "")
 
 
 @dataclass
@@ -91,6 +95,33 @@ def _read_json(handler: BaseHTTPRequestHandler) -> dict[str, Any]:
     if length == 0:
         return {}
     return json.loads(handler.rfile.read(length).decode("utf-8"))
+
+
+def _is_authorized(handler: BaseHTTPRequestHandler) -> bool:
+    if not APP_PASSWORD:
+        return True
+
+    auth_header = handler.headers.get("Authorization", "")
+    if not auth_header.startswith("Basic "):
+        return False
+
+    try:
+        decoded = base64.b64decode(auth_header.removeprefix("Basic ").strip()).decode("utf-8")
+        username, password = decoded.split(":", 1)
+    except (ValueError, UnicodeDecodeError):
+        return False
+
+    return secrets.compare_digest(username, APP_USERNAME) and secrets.compare_digest(password, APP_PASSWORD)
+
+
+def _auth_challenge(handler: BaseHTTPRequestHandler) -> None:
+    body = b"Authentication required."
+    handler.send_response(HTTPStatus.UNAUTHORIZED)
+    handler.send_header("WWW-Authenticate", 'Basic realm="AP Close"')
+    handler.send_header("Content-Type", "text/plain; charset=utf-8")
+    handler.send_header("Content-Length", str(len(body)))
+    handler.end_headers()
+    handler.wfile.write(body)
 
 
 def _base_url_for(config: dict[str, Any]) -> str:
@@ -206,6 +237,10 @@ class ZuoraCloseUIHandler(BaseHTTPRequestHandler):
         return
 
     def do_GET(self) -> None:
+        if not _is_authorized(self):
+            _auth_challenge(self)
+            return
+
         path = urlparse(self.path).path
         if path == "/":
             _html_response(self, INDEX_HTML)
@@ -249,6 +284,10 @@ class ZuoraCloseUIHandler(BaseHTTPRequestHandler):
         _json_response(self, HTTPStatus.NOT_FOUND, {"error": "Not found."})
 
     def do_POST(self) -> None:
+        if not _is_authorized(self):
+            _auth_challenge(self)
+            return
+
         path = urlparse(self.path).path
         try:
             payload = _read_json(self)

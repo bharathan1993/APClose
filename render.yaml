@@ -13,3 +13,7 @@ services:
         sync: false
       - key: ZUORA_CLOSE_UI_OPEN_BROWSER
         value: "0"
+      - key: APP_USERNAME
+        value: admin
+      - key: APP_PASSWORD
+        sync: false
