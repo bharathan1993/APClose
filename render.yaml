@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ap-close
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python zuora_period_close_ui.py
+    envVars:
+      - key: ZUORA_BASE_URL
+        value: https://rest.apisandbox.zuora.com
+      - key: ZUORA_CLIENT_ID
+        sync: false
+      - key: ZUORA_CLIENT_SECRET
+        sync: false
+      - key: ZUORA_CLOSE_UI_OPEN_BROWSER
+        value: "0"

@@ -35,8 +35,9 @@ from zuora_period_close import (
 
 load_dotenv()
 
-HOST = "127.0.0.1"
-PORT = int(os.getenv("ZUORA_CLOSE_UI_PORT", "8080"))
+HOST = os.getenv("HOST", "0.0.0.0" if os.getenv("RENDER") else "127.0.0.1")
+PORT = int(os.getenv("PORT") or os.getenv("ZUORA_CLOSE_UI_PORT", "8080"))
+OPEN_BROWSER = os.getenv("ZUORA_CLOSE_UI_OPEN_BROWSER", "0" if os.getenv("RENDER") else "1") != "0"
 
 
 @dataclass
@@ -893,10 +894,12 @@ INDEX_HTML = r"""<!doctype html>
 
 def main() -> None:
     server = ThreadingHTTPServer((HOST, PORT), ZuoraCloseUIHandler)
-    url = f"http://{HOST}:{PORT}"
-    print(f"Zuora Period Close UI is running at {url}")
+    display_host = "localhost" if HOST in {"0.0.0.0", ""} else HOST
+    url = f"http://{display_host}:{PORT}"
+    print(f"Zuora Period Close UI is listening on {HOST}:{PORT}")
+    print(f"Local URL: {url}")
     print("Press Ctrl+C to stop.")
-    if os.getenv("ZUORA_CLOSE_UI_OPEN_BROWSER", "1") != "0":
+    if OPEN_BROWSER:
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     server.serve_forever()
 
