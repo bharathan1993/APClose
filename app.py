@@ -197,13 +197,6 @@ def close_response(payload: dict[str, Any]) -> dict[str, Any]:
         period_name = str(payload.get("periodName", "")).strip()
         if not period_name:
             raise ValueError("Choose an accounting period to close.")
-        if (
-            payload.get("autoResolveActionNeeded")
-            and not payload.get("dryRun")
-            and str(payload.get("autoResolveConfirmation", "")).strip() != "POST DRAFTS"
-        ):
-            raise ValueError("Type POST DRAFTS to confirm live Action Needed auto-resolution.")
-
         client = build_client(payload)
         orchestrator = PeriodCloseOrchestrator(client, dry_run=bool(payload.get("dryRun")))
         success = orchestrator.run(

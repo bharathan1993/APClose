@@ -201,12 +201,6 @@ def _run_close(run_id: str, payload: dict[str, Any]) -> None:
 
         try:
             client = _build_client(payload)
-            if (
-                payload.get("autoResolveActionNeeded")
-                and not payload.get("dryRun")
-                and str(payload.get("autoResolveConfirmation", "")).strip() != "POST DRAFTS"
-            ):
-                raise ValueError("Type POST DRAFTS to confirm live Action Needed auto-resolution.")
             orchestrator = PeriodCloseOrchestrator(client, dry_run=bool(payload.get("dryRun")))
             success = orchestrator.run(
                 period_name=str(payload.get("periodName", "")).strip(),
@@ -317,18 +311,6 @@ class ZuoraCloseUIHandler(BaseHTTPRequestHandler):
                 if not period_name:
                     _json_response(self, HTTPStatus.BAD_REQUEST, {"error": "Choose an accounting period to close."})
                     return
-                if (
-                    payload.get("autoResolveActionNeeded")
-                    and not payload.get("dryRun")
-                    and str(payload.get("autoResolveConfirmation", "")).strip() != "POST DRAFTS"
-                ):
-                    _json_response(
-                        self,
-                        HTTPStatus.BAD_REQUEST,
-                        {"error": "Type POST DRAFTS to confirm live Action Needed auto-resolution."},
-                    )
-                    return
-
                 run_id = uuid.uuid4().hex
                 with RUNS_LOCK:
                     RUNS[run_id] = RunState(id=run_id)
@@ -508,17 +490,6 @@ INDEX_HTML = r"""<!doctype html>
     .check strong { display: block; font-size: 14px; }
     .check span { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
 
-    .confirm-box {
-      display: none;
-      margin-top: 12px;
-      padding: 14px;
-      border: 1px solid #fedf89;
-      background: #fffbeb;
-      border-radius: 16px;
-    }
-
-    .confirm-box.visible { display: block; }
-
     .scan-results {
       display: none;
       margin-top: 16px;
@@ -672,14 +643,8 @@ INDEX_HTML = r"""<!doctype html>
         </label>
         <label class="check">
           <input id="autoResolve" type="checkbox">
-          <span><strong>Auto-resolve Action Needed</strong><span>Posts draft invoices, credit memos, and debit memos after explicit confirmation. Processing payments/refunds are only waited on.</span></span>
+          <span><strong>Auto-resolve Action Needed</strong><span>Posts draft invoices, credit memos, and debit memos. Processing payments/refunds are only waited on.</span></span>
         </label>
-      </div>
-
-      <div id="confirmBox" class="confirm-box">
-        <label for="autoResolveConfirmation">Live confirmation</label>
-        <input id="autoResolveConfirmation" placeholder="Type POST DRAFTS before live auto-resolution">
-        <div class="hint">Required only when Dry run is off. This confirms the app may post draft financial documents listed in Action Needed.</div>
       </div>
 
       <div id="scanResults" class="scan-results"></div>
@@ -748,7 +713,6 @@ INDEX_HTML = r"""<!doctype html>
         dryRun: $("dryRun").checked,
         generateJournalRun: $("journalRun").checked,
         autoResolveActionNeeded: $("autoResolve").checked,
-        autoResolveConfirmation: $("autoResolveConfirmation").value,
       };
     }
 
@@ -856,11 +820,6 @@ INDEX_HTML = r"""<!doctype html>
 
     async function startClose() {
       clearMessage();
-      if ($("autoResolve").checked && !$("dryRun").checked && $("autoResolveConfirmation").value.trim() !== "POST DRAFTS") {
-        showMessage("Type POST DRAFTS to confirm live Action Needed auto-resolution.", "error");
-        setStatus("failed");
-        return;
-      }
       setBusy(true);
       setStatus("running");
       $("log").textContent = "Starting automation...";
@@ -920,10 +879,6 @@ INDEX_HTML = r"""<!doctype html>
       $("startClose").disabled = !$("period").value;
       $("scanActionNeeded").disabled = !$("period").value;
     });
-    $("autoResolve").addEventListener("change", () => {
-      $("confirmBox").className = $("autoResolve").checked ? "confirm-box visible" : "confirm-box";
-    });
-
     loadConfig();
   </script>
 </body>
