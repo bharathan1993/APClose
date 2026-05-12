@@ -234,7 +234,10 @@ class ZuoraClient:
 
     def post_invoice(self, invoice_key: str) -> dict:
         log.info(f"Posting draft invoice {invoice_key}...")
-        return self._put(f"/v1/invoices/{invoice_key}", {"status": "Posted"})
+        result = self._post("/v1/invoices/bulk-post", {"invoices": [{"id": invoice_key}]})
+        if result.get("success"):
+            return result
+        raise RuntimeError(f"Failed to post invoice {invoice_key}: {result}")
 
     def post_credit_memo(self, credit_memo_key: str) -> dict:
         log.info(f"Posting draft credit memo {credit_memo_key}...")
