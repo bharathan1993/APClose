@@ -515,6 +515,13 @@
           data.success ? "Automation completed successfully." : "Automation failed. Review the log for details.",
           data.success ? "info" : "error"
         );
+        if (data.success) {
+          await loadPeriods({
+            quiet: true,
+            message: "Automation completed successfully. Accounting periods refreshed.",
+            preserveStatus: true,
+          });
+        }
       } catch (error) {
         $("log").textContent = error.message;
         showMessage(error.message, "error");
@@ -535,7 +542,7 @@
       }
     }
 
-    async function loadPeriods({ quiet = false } = {}) {
+    async function loadPeriods({ quiet = false, message = null, preserveStatus = false } = {}) {
       if (!quiet) clearMessage();
       setBusy(true);
       if (!quiet) {
@@ -568,7 +575,10 @@
         $("startClose").disabled = !$("period").value;
         $("scanActionNeeded").disabled = !$("period").value;
         if (quiet) {
-          showMessage(data.periods.length ? "Accounting periods refreshed." : "No accounting periods returned by Zuora.", "info");
+          showMessage(
+            message || (data.periods.length ? "Accounting periods refreshed." : "No accounting periods returned by Zuora."),
+            "info"
+          );
         } else {
           $("log").textContent = data.periods.length
             ? `Loaded ${data.periods.length} accounting periods. Choose one and start the automation.`
@@ -578,7 +588,7 @@
       } catch (error) {
         if (!quiet) $("log").textContent = error.message;
         showMessage(error.message, "error");
-        if (!quiet) setStatus("failed");
+        if (!quiet || !preserveStatus) setStatus("failed");
       } finally {
         setBusy(false);
       }
