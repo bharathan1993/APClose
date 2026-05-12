@@ -143,6 +143,30 @@
     .secondary { background: #e8eefc; color: var(--brand-dark); }
     .danger { background: #fee4e2; color: var(--bad); }
 
+    .period-picker {
+      display: grid;
+      grid-template-columns: 1fr 46px;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .icon-button {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      padding: 0;
+      display: inline-grid;
+      place-items: center;
+      background: #e8eefc;
+      color: var(--brand-dark);
+    }
+
+    .icon-button svg {
+      width: 20px;
+      height: 20px;
+      stroke-width: 2.4;
+    }
+
     .switches {
       display: grid;
       gap: 12px;
@@ -272,6 +296,7 @@
       main { grid-template-columns: 1fr; }
       .steps { grid-template-columns: 1fr; }
       .grid-2 { grid-template-columns: 1fr; }
+      .period-picker { grid-template-columns: 1fr 44px; }
     }
   </style>
 </head>
@@ -312,9 +337,19 @@
       </div>
 
       <label for="period">Accounting Period</label>
-      <select id="period" disabled>
-        <option value="">Load periods to choose one</option>
-      </select>
+      <div class="period-picker">
+        <select id="period" disabled>
+          <option value="">Load periods to choose one</option>
+        </select>
+        <button id="refreshPeriods" class="icon-button" type="button" title="Reload accounting periods" aria-label="Reload accounting periods" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true">
+            <path d="M21 12a9 9 0 0 1-15.4 6.4L3 16"></path>
+            <path d="M3 21v-5h5"></path>
+            <path d="M3 12A9 9 0 0 1 18.4 5.6L21 8"></path>
+            <path d="M21 3v5h-5"></path>
+          </svg>
+        </button>
+      </div>
 
       <div class="switches">
         <label class="check">
@@ -387,6 +422,7 @@
 
     function setBusy(isBusy) {
       $("loadPeriods").disabled = isBusy;
+      $("refreshPeriods").disabled = isBusy || $("period").disabled || !$("period").options.length;
       $("scanActionNeeded").disabled = isBusy || !$("period").value;
       $("startClose").disabled = isBusy || !$("period").value;
     }
@@ -499,11 +535,14 @@
       }
     }
 
-    async function loadPeriods() {
-      clearMessage();
+    async function loadPeriods({ quiet = false } = {}) {
+      if (!quiet) clearMessage();
       setBusy(true);
-      setStatus("running");
-      $("log").textContent = "Connecting to Zuora and loading accounting periods...";
+      if (!quiet) {
+        setStatus("running");
+        $("log").textContent = "Connecting to Zuora and loading accounting periods...";
+      }
+      const previousPeriodId = $("period").value;
 
       try {
         const data = await api("/api/periods", {
@@ -520,17 +559,26 @@
           $("period").appendChild(option);
         }
 
+        if (previousPeriodId && data.periods.some((period) => period.id === previousPeriodId)) {
+          $("period").value = previousPeriodId;
+        }
+
         $("period").disabled = data.periods.length === 0;
-        $("startClose").disabled = data.periods.length === 0;
-        $("scanActionNeeded").disabled = data.periods.length === 0;
-        $("log").textContent = data.periods.length
-          ? `Loaded ${data.periods.length} accounting periods. Choose one and start the automation.`
-          : "No accounting periods returned by Zuora.";
-        setStatus("succeeded");
+        $("refreshPeriods").disabled = data.periods.length === 0;
+        $("startClose").disabled = !$("period").value;
+        $("scanActionNeeded").disabled = !$("period").value;
+        if (quiet) {
+          showMessage(data.periods.length ? "Accounting periods refreshed." : "No accounting periods returned by Zuora.", "info");
+        } else {
+          $("log").textContent = data.periods.length
+            ? `Loaded ${data.periods.length} accounting periods. Choose one and start the automation.`
+            : "No accounting periods returned by Zuora.";
+          setStatus("succeeded");
+        }
       } catch (error) {
-        $("log").textContent = error.message;
+        if (!quiet) $("log").textContent = error.message;
         showMessage(error.message, "error");
-        setStatus("failed");
+        if (!quiet) setStatus("failed");
       } finally {
         setBusy(false);
       }
@@ -562,6 +610,7 @@
     }
 
     $("loadPeriods").addEventListener("click", loadPeriods);
+    $("refreshPeriods").addEventListener("click", () => loadPeriods({ quiet: true }));
     $("scanActionNeeded").addEventListener("click", scanActionNeeded);
     $("startClose").addEventListener("click", startClose);
     $("clearLog").addEventListener("click", () => {
