@@ -141,6 +141,22 @@ class ZuoraClient:
                 break
         return records
 
+    def _list_v2_objects_first_success(self, resources: list[str], filters: list[str],
+                                       fields: list[str], page_size: int = 99) -> list:
+        """List objects while tolerating tenant-specific resource name variants."""
+        last_error = None
+        for resource in resources:
+            try:
+                return self._list_v2_objects(resource, filters, fields, page_size=page_size)
+            except requests.HTTPError as e:
+                last_error = e
+                if e.response is None or not self._is_endpoint_variant_miss(e):
+                    raise
+                log.info(f"Object query resource '{resource}' is unavailable; trying next variant.")
+        if last_error:
+            raise last_error
+        raise RuntimeError("No object query resource candidates were supplied.")
+
     def _put_first_success(self, candidates: list[tuple[str, dict]]) -> dict:
         """Try endpoint variants for Zuora resources that differ by API generation."""
         last_error = None
@@ -231,13 +247,13 @@ class ZuoraClient:
                 ["status.EQ:Processing", f"refunddate.GE:{start_date}", f"refunddate.LE:{end_date}"],
                 ["id", "refundnumber", "accountid", "amount", "refunddate", "status"],
             ),
-            "draftCreditMemos": self._list_v2_objects(
-                "credit-memos",
+            "draftCreditMemos": self._list_v2_objects_first_success(
+                ["credit-memos", "creditmemos"],
                 ["status.EQ:Draft", f"memodate.GE:{start_date}", f"memodate.LE:{end_date}"],
                 ["id", "memonumber", "accountid", "totalamount", "memodate", "status"],
             ),
-            "draftDebitMemos": self._list_v2_objects(
-                "debit-memos",
+            "draftDebitMemos": self._list_v2_objects_first_success(
+                ["debit-memos", "debitmemos"],
                 ["status.EQ:Draft", f"memodate.GE:{start_date}", f"memodate.LE:{end_date}"],
                 ["id", "memonumber", "accountid", "totalamount", "memodate", "status"],
             ),
