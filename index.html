@@ -442,6 +442,11 @@
       el.className = "scan-results visible";
     }
 
+    function isTrialBalanceTimeout(data) {
+      const logs = Array.isArray(data.logs) ? data.logs.join("\n") : "";
+      return !data.success && logs.includes("Trial balance timed out after polling");
+    }
+
     async function api(path, options = {}) {
       const { _retriedAuth, ...fetchOptions } = options;
       const headers = {
@@ -481,18 +486,43 @@
       $("log").textContent = "Starting automation. Keep this tab open until the request finishes...";
 
       try {
-        const data = await api("/api/close", {
-          method: "POST",
-          body: JSON.stringify(payload()),
-        });
-        $("log").textContent = data.logs && data.logs.length ? data.logs.join("\n") : "Automation finished without log output.";
-        $("log").scrollTop = $("log").scrollHeight;
-        setStatus(data.status || (data.success ? "succeeded" : "failed"));
+        const startedAt = Date.now();
+        const maxTrialBalanceWaitMs = 60 * 60 * 1000;
+        let attempt = 1;
+        let data = null;
+
+        while (Date.now() - startedAt < maxTrialBalanceWaitMs) {
+          data = await api("/api/close", {
+            method: "POST",
+            body: JSON.stringify(payload()),
+          });
+
+          $("log").textContent = data.logs && data.logs.length ? data.logs.join("\n") : "Automation finished without log output.";
+          $("log").scrollTop = $("log").scrollHeight;
+          setStatus(data.status || (data.success ? "succeeded" : "failed"));
+
+          if (!isTrialBalanceTimeout(data)) {
+            break;
+          }
+
+          attempt += 1;
+          const elapsedMinutes = Math.round((Date.now() - startedAt) / 60000);
+          showMessage(`Trial balance is still processing. Continuing to wait (${elapsedMinutes}/60 minutes)...`, "info");
+          $("log").textContent += `\n\nTrial balance is still processing. Starting polling window ${attempt}.`;
+          $("log").scrollTop = $("log").scrollHeight;
+        }
+
+        if (data && isTrialBalanceTimeout(data)) {
+          setStatus("failed");
+          showMessage("Trial balance did not complete within 60 minutes. Check Zuora and retry when processing is complete.", "error");
+          return;
+        }
+
         showMessage(
-          data.success ? "Automation completed successfully." : "Automation failed. Review the log for details.",
-          data.success ? "info" : "error"
+          data && data.success ? "Automation completed successfully." : "Automation failed. Review the log for details.",
+          data && data.success ? "info" : "error"
         );
-        if (data.success) {
+        if (data && data.success) {
           await loadPeriods({
             quiet: true,
             message: "Automation completed successfully. Accounting periods refreshed.",
