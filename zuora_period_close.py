@@ -104,7 +104,7 @@ class ZuoraClient:
         log.info("✅ Authentication successful.")
 
     def _get(self, path: str, params: dict = None) -> dict:
-        url  = f"{self.base_url}{path}"
+        url  = path if path.startswith("http") else f"{self.base_url}{path}"
         resp = self.session.get(url, params=params, timeout=60)
         resp.raise_for_status()
         return resp.json()
@@ -156,6 +156,54 @@ class ZuoraClient:
         if last_error:
             raise last_error
         raise RuntimeError("No object query resource candidates were supplied.")
+
+    def _list_memos_v1_first_success(self, paths: list[str], response_key: str,
+                                     date_field: str, start_date: str, end_date: str) -> list:
+        """List draft memo documents using memo APIs, then filter to the accounting period dates."""
+        last_error = None
+        for path in paths:
+            try:
+                return self._list_memos_v1(path, response_key, date_field, start_date, end_date)
+            except requests.HTTPError as e:
+                last_error = e
+                if e.response is None or not self._is_endpoint_variant_miss(e):
+                    raise
+                log.info(f"Memo API resource '{path}' is unavailable; trying next variant.")
+        if last_error:
+            raise last_error
+        raise RuntimeError("No memo API candidates were supplied.")
+
+    def _list_memos_v1(self, path: str, response_key: str,
+                       date_field: str, start_date: str, end_date: str) -> list:
+        records = []
+        next_path = path
+        params = {"status": "Draft"}
+
+        while next_path:
+            data = self._get(next_path, params=params)
+            for memo in data.get(response_key, []):
+                memo_date = memo.get(date_field) or memo.get("memoDate") or memo.get("memodate")
+                if memo_date and start_date <= memo_date <= end_date:
+                    records.append(self._normalize_memo(memo, date_field))
+            next_path = data.get("nextPage")
+            params = None
+
+        return records
+
+    def _normalize_memo(self, memo: dict, date_field: str) -> dict:
+        amount = memo.get("amount", memo.get("totalAmount", memo.get("totalamount", "")))
+        memo_date = memo.get(date_field) or memo.get("memoDate") or memo.get("memodate", "")
+        number = memo.get("number") or memo.get("memoNumber") or memo.get("memonumber") or memo.get("id")
+        return {
+            **memo,
+            "memonumber": number,
+            "memoNumber": number,
+            "amount": amount,
+            "totalamount": amount,
+            "totalAmount": amount,
+            "memodate": memo_date,
+            "memoDate": memo_date,
+        }
 
     def _put_first_success(self, candidates: list[tuple[str, dict]]) -> dict:
         """Try endpoint variants for Zuora resources that differ by API generation."""
@@ -247,15 +295,19 @@ class ZuoraClient:
                 ["status.EQ:Processing", f"refunddate.GE:{start_date}", f"refunddate.LE:{end_date}"],
                 ["id", "refundnumber", "accountid", "amount", "refunddate", "status"],
             ),
-            "draftCreditMemos": self._list_v2_objects_first_success(
-                ["credit-memos", "creditmemos"],
-                ["status.EQ:Draft", f"memodate.GE:{start_date}", f"memodate.LE:{end_date}"],
-                ["id", "memonumber", "accountid", "totalamount", "memodate", "status"],
+            "draftCreditMemos": self._list_memos_v1_first_success(
+                ["/v1/credit-memos", "/v1/creditmemos"],
+                "creditmemos",
+                "creditMemoDate",
+                start_date,
+                end_date,
             ),
-            "draftDebitMemos": self._list_v2_objects_first_success(
-                ["debit-memos", "debitmemos"],
-                ["status.EQ:Draft", f"memodate.GE:{start_date}", f"memodate.LE:{end_date}"],
-                ["id", "memonumber", "accountid", "totalamount", "memodate", "status"],
+            "draftDebitMemos": self._list_memos_v1_first_success(
+                ["/v1/debit-memos", "/v1/debitmemos"],
+                "debitmemos",
+                "debitMemoDate",
+                start_date,
+                end_date,
             ),
         }
 
