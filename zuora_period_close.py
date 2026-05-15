@@ -152,11 +152,22 @@ class ZuoraClient:
                 raise RuntimeError(f"{path} returned unsuccessful response: {result}")
             except requests.HTTPError as e:
                 last_error = e
-                if e.response is None or e.response.status_code not in (404, 405):
+                if e.response is None or not self._is_endpoint_variant_miss(e):
                     raise
         if last_error:
             raise last_error
         raise RuntimeError("No endpoint candidates were supplied.")
+
+    def _is_endpoint_variant_miss(self, error: requests.HTTPError) -> bool:
+        """Return true when Zuora rejected an endpoint spelling, not the business operation."""
+        response = error.response
+        if response is None:
+            return False
+        if response.status_code in (404, 405):
+            return True
+        if response.status_code == 400:
+            return "unknown resource" in response.text.lower()
+        return False
 
     # ── Accounting Periods ────────────────────────────────────────────────────
     def list_accounting_periods(self) -> list:
